@@ -5,6 +5,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 fn main() {
+    // UX2-1 ON
     let vibration_pin = Pin::new(27); // 震动小马达
     vibration_pin.with_exported(|| {
         sleep(Duration::from_millis(80));

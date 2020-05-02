@@ -3,6 +3,7 @@
 import time
 import RPi.GPIO as GPIO
 
+# UX2-1 ON
 vibration_pin = 13 # 震动小马达
 
 GPIO.setmode(GPIO.BOARD)
