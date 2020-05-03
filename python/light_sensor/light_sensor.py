@@ -6,13 +6,16 @@ import smbus
 import time
 
 print("GPIO.RPI_REVISION", GPIO.RPI_REVISION)
- # 为IIC总线找到正确的设备
+
+
+# 为IIC总线找到正确的设备
 if(GPIO.RPI_REVISION == 1):
     bus = smbus.SMBus(0)
 else:
     bus = smbus.SMBus(1)
 
-class LightSensor():
+
+class LightSensor:
 
     def __init__(self):
 
@@ -40,26 +43,29 @@ class LightSensor():
         # 测量结束后，自动将设备设置为关机状态。
         self.ONE_TIME_LOW_RES_MODE = 0x23
 
-    def convertToNumber(self, data):
+    @staticmethod
+    def convert_to_number(data):
 
         # 简单的函数转换2字节的数据
         # 变成一个十进制数
-        return ((data[1] + (256 * data[0])) / 1.2)
+        return (data[1] + (256 * data[0])) / 1.2
 
-    def readLight(self):
+    def read_light(self):
 
-        data = bus.read_i2c_block_data(self.DEVICE,self.ONE_TIME_HIGH_RES_MODE_1)
-        return self.convertToNumber(data)
+        data = bus.read_i2c_block_data(self.DEVICE, self.ONE_TIME_HIGH_RES_MODE_1)
+        return self.convert_to_number(data)
+
 
 def main():
 
     sensor = LightSensor()
     try:
         while True:
-            print("Light Level : " + str(sensor.readLight()) + " lx")
+            print("Light Level : " + str(sensor.read_light()) + " lx")
             time.sleep(0.5)
     except KeyboardInterrupt:
         pass
+
 
 if __name__ == "__main__":
     main()
