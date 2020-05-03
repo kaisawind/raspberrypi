@@ -17,11 +17,20 @@ enum InstructionSet {
     PowerDown = 0b0000_0000,
     PowerOn = 0b0000_0001,
     Reset = 0b0000_0111,
+    // 以4lx分辨率开始测量。时间通常16ms。
     ContinuouslyHResolutionMode = 0b0001_0000,
+    // 从1lx分辨率开始测量，通常时间120ms。
     ContinuouslyHResolutionMode2 = 0b0001_0001,
+    // 以0.5lx分辨率开始测量，通常时间120毫秒。
     ContinuouslyLResolutionMode = 0b0001_0011,
+    // 从1lx分辨率开始测量，通常时间120毫秒。
+    // 测量结束后，自动将设备设置为关机状态。
     OneTimeHResolutionMode = 0b0010_0000,
+    // 开始测量0.5lx分辨率，通常时间120毫秒。
+    // 测量结束后，自动将设备设置为关机状态。
     OneTimeHResolutionMode2 = 0b0010_0001,
+    // 从1lx分辨率开始测量，通常时间120毫秒。
+    // 测量结束后，自动将设备设置为关机状态。
     OneTimeLResolutionMode = 0b0010_0011,
 }
 
