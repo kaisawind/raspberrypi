@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let pulse_duration = pulse_end - pulse_start;
-    let distance = (pulse_duration.as_secs() * 34000) as f64 / 2.0; // 声音传播速度340m/s
+    let distance = pulse_duration.as_secs_f64() * 34000 as f64 / 2.0; // 声音传播速度340m/s
     println!("Distance: {:.2} cm", distance);
     Ok(())
 }
