@@ -5,9 +5,8 @@ use mfrc522::command::Command;
 use mfrc522::error::Error;
 use mfrc522::pcd::PCD;
 use mfrc522::status::Status;
-use rppal::gpio;
 use rppal::gpio::Gpio;
-use rppal::spi::{Bus, Mode, Segment, SlaveSelect, Spi};
+use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 
 mod mfrc522;
 
@@ -38,11 +37,11 @@ impl Mfrc522 {
         Ok(())
     }
 
-    pub fn read(&mut self, address: u8) -> Result<(), Error> {
+    pub fn read(&mut self, address: u8) -> Result<u8, Error> {
         let mut buffer = [address, 0];
         let size = self.spi.read(&mut buffer[..])?;
         println!("read size {}", size);
-        Ok(())
+        Ok(buffer[1])
     }
 
     fn init(&mut self) -> Result<(), Error> {
@@ -55,6 +54,14 @@ impl Mfrc522 {
 
         self.write(Command::TxAutoReg.w_addr(), 0x40)?;
         self.write(Command::ModeReg.w_addr(), 0x3D)?;
+
+        self.antenna_on()?;
+        Ok(())
+    }
+
+    fn antenna_on(&mut self) -> Result<(), Error> {
+        let reg = self.read(Command::TxControlReg.r_addr())?;
+        println!("read TxControlReg {}", reg);
         Ok(())
     }
 }
