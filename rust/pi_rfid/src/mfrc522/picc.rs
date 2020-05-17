@@ -1,8 +1,7 @@
-pub enum PCD {
+pub enum PICC {
     REQIDL = 0x26,
     REQALL = 0x52,
     ANTICOLL = 0x93,
-    SElECTTAG = 0x93,
     AUTHENT1A = 0x60,
     AUTHENT1B = 0x61,
     READ = 0x30,

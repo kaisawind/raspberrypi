@@ -4,9 +4,10 @@ use mfrc522::cfg::CFG;
 use mfrc522::command::Command;
 use mfrc522::error::Error;
 use mfrc522::pcd::PCD;
+use mfrc522::picc::PICC;
 use mfrc522::status::Status;
 use rppal::gpio::Gpio;
-use rppal::spi::{Bus, Mode, SlaveSelect, Spi, Segment};
+use rppal::spi::{Bus, Mode, Segment, SlaveSelect, Spi};
 
 mod mfrc522;
 
@@ -36,7 +37,12 @@ impl Mfrc522 {
 
     pub fn write<T: Address>(&mut self, address: T, value: u8) -> Result<(), Error> {
         let size = self.spi.write(&[address.w_addr(), value])?;
-        println!("write address 0x{:02x} value 0x{:02x} size {}", address.as_u8(), value, size);
+        println!(
+            "write address 0x{:02x} value 0x{:02x} size {}",
+            address.as_u8(),
+            value,
+            size
+        );
         Ok(())
     }
 
@@ -50,24 +56,60 @@ impl Mfrc522 {
         Ok(buffer[0])
     }
 
-    pub fn request(&mut self, mode:u8) -> Result<(), Error> {
+    pub fn read_id(&mut self) -> Result<(), Error> {
+        self.request(PICC::REQIDL as u8)?;
+        let (data, _) = self.anticoll()?;
+        let mut num = 0;
+        for i in 0..5 {
+            num = num * 0xFF + data[i];
+        }
+        println!("card id {}", num);
+        Ok(())
+    }
+
+    pub fn anticoll(&mut self) -> Result<([u8; MAX_LEN], u8), Error> {
+        self.write(Status::BitFramingReg, 0x00)?;
+        let (data, len) = self.transceive(&[PICC::ANTICOLL as u8, 0x20])?;
+        if len == 5 * 8 {
+            let mut check = 0;
+            for i in 0..4 {
+                check = check ^ data[i];
+            }
+            if check != data[4] {
+                return Err(Error::Transceive);
+            }
+        } else {
+            return Err(Error::Transceive);
+        }
+        Ok((data, len))
+    }
+
+    pub fn request(&mut self, mode: u8) -> Result<(), Error> {
         // 用于面向位的帧的发送:TxLastBits 定义发送的最后一个字节的位数。000 表示最后一个字节的所有位都应发送。
         self.write(Status::BitFramingReg, 0x07)?;
         let (data, len) = self.transceive(&[mode])?;
         if len != 0x10 {
-            return Err(Error::Transceive)
+            return Err(Error::Transceive);
         }
         println!("request data {:?}, len {}", data, len);
         Ok(())
     }
 
-    fn clear_bit_mask<T: Address + Clone + Copy>(&mut self, address: T, value: u8)  -> Result<(), Error> {
+    fn clear_bit_mask<T: Address + Clone + Copy>(
+        &mut self,
+        address: T,
+        value: u8,
+    ) -> Result<(), Error> {
         let temp = self.read(address)?;
         self.write(address, temp & !value)?;
         Ok(())
     }
 
-    fn set_bit_mask<T: Address + Clone + Copy>(&mut self, address: T, value: u8)  -> Result<(), Error> {
+    fn set_bit_mask<T: Address + Clone + Copy>(
+        &mut self,
+        address: T,
+        value: u8,
+    ) -> Result<(), Error> {
         let temp = self.read(address)?;
         self.write(address, temp | value)?;
         Ok(())
@@ -78,21 +120,21 @@ impl Mfrc522 {
         self.clear_bit_mask(Status::ComIrqReg, 0b1000_0000)?;
         self.set_bit_mask(Status::FIFOLevelReg, 0b1000_0000)?;
 
-        self.write(Status::CommandReg, PCD::Idle as u8)?;  // 初期化指令
+        self.write(Status::CommandReg, PCD::Idle as u8)?; // 初期化指令
 
         for v in data {
             self.write(Status::FIFODataReg, *v)?;
         }
 
-        self.write(Status::CommandReg, PCD::Transceive as u8)?;  // 发送指令
-        self.set_bit_mask(Status::BitFramingReg, 0b1000_0000)?;  // 启动发送
+        self.write(Status::CommandReg, PCD::Transceive as u8)?; // 发送指令
+        self.set_bit_mask(Status::BitFramingReg, 0b1000_0000)?; // 启动发送
 
         let mut i = 2000;
         let (count, irq) = loop {
             let n = self.read(Status::ComIrqReg)?;
             i -= 1;
             if (i == 0) || (n & 0x01 == 0x01) || (n & 0x30 == 0x30) {
-                break (i, n)
+                break (i, n);
             }
         };
 
@@ -110,24 +152,24 @@ impl Mfrc522 {
             return Err(Error::NotAgree);
         }
 
-        let mut length;
-        let count = self.read(Status::FIFOLevelReg)?;
+        let length;
+        let mut count = self.read(Status::FIFOLevelReg)?;
         let last_bits = self.read(Status::ControlReg)?;
         if last_bits != 0 {
             length = (count - 1) * 8 + last_bits;
         } else {
             length = count * 8;
         }
-
+        println!("data count {}", count);
         if count == 0 {
-            length = 1;
+            count = 1;
         }
 
         if count > MAX_LEN as u8 {
-            length = MAX_LEN as u8;
+            count = MAX_LEN as u8;
         }
 
-        let mut data = [0;MAX_LEN];
+        let mut data = [0; MAX_LEN];
         for i in 0..count as usize {
             let value = self.read(Status::FIFODataReg)?;
             data[i] = value;
