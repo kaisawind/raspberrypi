@@ -9,6 +9,8 @@ use std::io;
 pub enum Error {
     /// I/O error.
     Io(io::Error),
+    Transceive,
+    NotAgree,
     Spi(spi::Error),
     Gpio(gpio::Error),
 }
@@ -19,6 +21,8 @@ impl fmt::Display for Error {
             Error::Io(ref err) => write!(f, "I/O error: {}", err),
             Error::Spi(ref err) => write!(f, "spi error: {}", err),
             Error::Gpio(ref err) => write!(f, "gpio error: {}", err),
+            Error::Transceive => write!(f, "spi transceive error"),
+            Error::NotAgree => write!(f, "spi not agree error"),
         }
     }
 }

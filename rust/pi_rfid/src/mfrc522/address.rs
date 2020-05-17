@@ -12,4 +12,5 @@ pub enum RW {
 pub trait Address {
     fn r_addr(&self) -> u8;
     fn w_addr(&self) -> u8;
+    fn as_u8(self) -> u8;
 }

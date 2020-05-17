@@ -28,4 +28,7 @@ impl Address for Test {
     fn w_addr(&self) -> u8 {
         ((*self as u8) << 1) | (RW::W as u8)
     }
+    fn as_u8(self) -> u8 {
+        self as u8
+    }
 }
