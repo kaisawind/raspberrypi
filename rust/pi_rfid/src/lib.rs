@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::mfrc522::address::Address;
+use mfrc522::address::Address;
 use mfrc522::cfg::CFG;
 use mfrc522::command::Command;
 use mfrc522::error::Error;
@@ -39,7 +39,7 @@ impl Mfrc522 {
         let size = self.spi.write(&[address.w_addr(), value])?;
         println!(
             "write address 0x{:02x} value 0x{:02x} size {}",
-            address.as_u8(),
+            address.w_addr(),
             value,
             size
         );
@@ -52,16 +52,17 @@ impl Mfrc522 {
             Segment::with_write(&[address.r_addr()]),
             Segment::with_read(&mut buffer),
         ])?;
-        println!("read buffer {:?}", buffer);
+        println!("read buffer 0x{:02x} 0x{:02x}", address.r_addr(), buffer[0]);
         Ok(buffer[0])
     }
 
     pub fn read_id(&mut self) -> Result<(), Error> {
         self.request(PICC::REQIDL as u8)?;
         let (data, _) = self.anticoll()?;
-        let mut num = 0;
+        let mut num:i64 = 0;
         for i in 0..5 {
-            num = num * 0xFF + data[i];
+            num = num * 256;
+            num += data[i] as i64;
         }
         println!("card id {}", num);
         Ok(())
@@ -133,34 +134,38 @@ impl Mfrc522 {
         let (count, irq) = loop {
             let n = self.read(Status::ComIrqReg)?;
             i -= 1;
-            if (i == 0) || (n & 0x01 == 0x01) || (n & 0x30 == 0x30) {
+            if (i == 0) || (n & 0x01 == 0x01) || (n & 0x30 != 0x00) {
                 break (i, n);
             }
         };
 
         self.clear_bit_mask(Status::BitFramingReg, 0b1000_0000)?; // 发送完了
 
+        println!("loop count {}", count);
         if count == 0 {
             return Err(Error::Transceive);
         }
 
-        if self.read(Status::ErrorReg)? != 0x00 {
+        let err = self.read(Status::ErrorReg)?;
+        if err != 0x00 {
+            println!("Status::ErrorReg {}", err);
             return Err(Error::Transceive);
         }
 
+        println!("irq {:02x}", irq & 0b0111_0111 & 0x01);
         if irq & 0b0111_0111 & 0x01 == 0x01 {
             return Err(Error::NotAgree);
         }
 
         let length;
         let mut count = self.read(Status::FIFOLevelReg)?;
-        let last_bits = self.read(Status::ControlReg)?;
+        let last_bits = self.read(Status::ControlReg)? & 0x07;
         if last_bits != 0 {
             length = (count - 1) * 8 + last_bits;
         } else {
             length = count * 8;
         }
-        println!("data count {}", count);
+        println!("last_bits {} n {}", last_bits, count);
         if count == 0 {
             count = 1;
         }
